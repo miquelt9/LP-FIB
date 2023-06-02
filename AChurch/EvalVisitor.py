@@ -7,7 +7,6 @@ import string
 DEBUG = 0
 diccionari_macros = {}
 
-
 @dataclass
 class NodeAp:
     esq: Arbre
@@ -160,7 +159,7 @@ def beta_reduction(a: Arbre):
 
 def beta_reduction_depth(a: Arbre) -> Arbre:
     if isinstance(a, NodeAp) and isinstance(a.esq, NodeAbs):
-        if DEBUG: print("beta-detected")
+        if DEBUG: print("beta-detected" + show(a))
         return beta_substitution(a.esq.dre, a.esq.esq.val, a.dre)
     
     elif isinstance(a, NodeAp):
@@ -197,15 +196,16 @@ def tree_is_beta_reducible(a: Arbre) -> bool:
     return tree_is_beta_reducible(a.esq) or tree_is_beta_reducible(a.dre)
 
 def alpha_convert(a: Arbre):
-    b = alpha(a)
+    b = alpha(a, generate_vars())
     if DEBUG: print("NEW ALPHA TREE: " + show(b))
     return a
 
-def alpha(a: Arbre, available_vars=list(string.ascii_lowercase)):
+def alpha(a: Arbre, available_vars):
     if isinstance(a, NodeAp) and isinstance(a.esq, NodeAbs):
         may_conflict_vars = get_vars_tree(a.dre)
         already_inuse_vars = get_vars_tree(a.esq)
-        available_vars = [x for x in available_vars if x not in already_inuse_vars] # all standard dict available
+         # all standard dict available
+        available_vars = [x for x in available_vars if x not in already_inuse_vars]
         # create dictionary that converts a -> b 
         alpha_dict = build_dictionary(may_conflict_vars, available_vars)
         # substitute a esq amb vars diff de les de la dreta
@@ -244,6 +244,13 @@ def build_dictionary(conflict_list, all_letters):
         alpha_d[letter] = available_letters[0]
 
     return alpha_d
+
+def generate_vars():
+    l = list(string.ascii_lowercase)
+    for i in l:
+        l.append(str(i+"'"))
+        if len(l) > 100: break
+    return l
 
 def alpha_substitution(a: Arbre, conversor):
     if isinstance(a, NodeAp): return NodeAp(alpha_substitution(a.esq, conversor), alpha_substitution(a.dre, conversor))
