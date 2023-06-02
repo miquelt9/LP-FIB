@@ -33,8 +33,8 @@ class EvalVisitor(exprsVisitor):
         if DEBUG: print(a)
         
         # Diferenciarem per casos, doncs si són macros no podem fer el mateix tractament
-        if isinstance(ctx.terme(), exprsParser.TermeContext):
-            print("Matched 'TERME'")
+        if ctx.terme() and a != NodeVar(None):
+            if DEBUG: print("Matched 'TERME'")
             
             print("Arbre:")
             print(show(a))
@@ -55,8 +55,8 @@ class EvalVisitor(exprsVisitor):
             
             return a
             
-        elif isinstance(ctx.assignar(), exprsParser.AssignarContext):
-            print("Matched 'ASSIGNAR'")
+        elif ctx.assignar():
+            if DEBUG: print("Matched 'ASSIGNAR'")
                 
 
     def visitParentesis(self, ctx):
@@ -93,28 +93,51 @@ class EvalVisitor(exprsVisitor):
     
     def visitMacro(self, ctx):
         [macro] = list(ctx.getChildren())
-        return diccionari_macros[str(macro)]
+        if str(macro) in diccionari_macros:
+            return diccionari_macros[str(macro)]
+        
+        print("⚠  The macro you used (" + str(macro) + ") was not declared\nShowing current dictionary:")
+        print_available_macros()
+        return NodeVar(None)
     
     def visitAssignarMacro(self, ctx):
         if DEBUG: print("-> Visiting assignar macro")
         [nom_macro,_,terme] = list(ctx.getChildren())
         diccionari_macros[str(nom_macro)] = self.visit(terme)
         
-        for nom_macro, macro in diccionari_macros.items():
-            print(str(nom_macro) + " ≡ " + show(macro))
+        print_available_macros()
             
     def visitAssignarInfix(self, ctx:exprsParser.AssignarInfixContext):
         if DEBUG: print("-> Visiting assignar infix")
         [nom_infix,_,terme] = list(ctx.getChildren())
         diccionari_macros[str(nom_infix)] = self.visit(terme)
         
-        for nom_infix, macro in diccionari_macros.items():
-            print(str(nom_infix) + " ≡ " + show(macro))
+        print_available_macros()
             
     def visitInfix(self, ctx):
         if DEBUG: print("-> Visiting infix")
         [macro1,infix,macro2] = list(ctx.getChildren())
+        
+        if not str(macro1) in diccionari_macros:
+            print("⚠  The macro you used (" + str(macro1) + ") was not declared\nShowing current dictionary:")
+            print_available_macros()     
+            return NodeVar(None)
+
+        if not str(macro2) in diccionari_macros:
+            print("⚠  The macro you used (" + str(macro2) + ") was not declared\nShowing current dictionary:")
+            print_available_macros()     
+            return NodeVar(None)
+        
+        if not str(infix) in diccionari_macros:
+            print("⚠  The infix you used (" + str(infix) + ") was not declared\nShowing current dictionary:")
+            print_available_macros()     
+            return NodeVar(None)
+        
         return NodeAp(NodeAp(diccionari_macros[str(infix)], diccionari_macros[str(macro1)]), diccionari_macros[str(macro2)])
+   
+def print_available_macros():
+    for nom_macro, macro in diccionari_macros.items():
+                print(str(nom_macro) + " ≡ " + show(macro))   
     
 def show(a: Arbre) -> str:
     match a:

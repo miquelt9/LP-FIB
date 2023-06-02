@@ -4,19 +4,18 @@ from exprsParser import exprsParser
 from EvalVisitor import *
 
 while True:
-    input_stream = InputStream(input('? '))
-    lexer = exprsLexer(input_stream)
-    token_stream = CommonTokenStream(lexer)
-    parser = exprsParser(token_stream)
-    tree = parser.root()
+    user_input = input('? ')
+    if (user_input != ""):
+        input_stream = InputStream(user_input)
+        lexer = exprsLexer(input_stream)
+        token_stream = CommonTokenStream(lexer)
+        parser = exprsParser(token_stream)
+        tree = parser.root()
 
-    if (parser.getNumberOfSyntaxErrors() == 0):
-        visitor = EvalVisitor()
-        visitor.visit(tree)
-        
-    else:
-        if tree.getChildCount() == 0:
-            print("Looks like you didn't write the input :|")
+        if (parser.getNumberOfSyntaxErrors() == 0):
+            visitor = EvalVisitor()
+            visitor.visit(tree)
+            
         else:
             print("")
             print(parser.getNumberOfSyntaxErrors(), 'errors de sintaxi.')

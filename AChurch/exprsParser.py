@@ -16,9 +16,9 @@ def serializedATN():
         2,43,8,2,11,2,12,2,44,1,2,1,2,3,2,49,8,2,1,2,1,2,5,2,53,8,2,10,2,
         12,2,56,9,2,1,2,0,1,4,3,0,2,4,0,0,68,0,8,1,0,0,0,2,24,1,0,0,0,4,
         48,1,0,0,0,6,9,3,4,2,0,7,9,3,2,1,0,8,6,1,0,0,0,8,7,1,0,0,0,9,1,1,
-        0,0,0,10,14,5,9,0,0,11,15,5,1,0,0,12,15,1,0,0,0,13,15,5,2,0,0,14,
+        0,0,0,10,14,5,10,0,0,11,15,5,1,0,0,12,15,1,0,0,0,13,15,5,2,0,0,14,
         11,1,0,0,0,14,12,1,0,0,0,14,13,1,0,0,0,15,16,1,0,0,0,16,25,3,4,2,
-        0,17,21,5,10,0,0,18,22,5,1,0,0,19,22,1,0,0,0,20,22,5,2,0,0,21,18,
+        0,17,21,5,9,0,0,18,22,5,1,0,0,19,22,1,0,0,0,20,22,5,2,0,0,21,18,
         1,0,0,0,21,19,1,0,0,0,21,20,1,0,0,0,22,23,1,0,0,0,23,25,3,4,2,0,
         24,10,1,0,0,0,24,17,1,0,0,0,25,3,1,0,0,0,26,27,6,2,-1,0,27,49,5,
         8,0,0,28,29,5,9,0,0,29,30,5,10,0,0,30,49,5,9,0,0,31,49,5,9,0,0,32,
@@ -198,11 +198,11 @@ class exprsParser ( Parser ):
             self.state = 24
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [9]:
-                localctx = exprsParser.AssignarMacroContext(self, localctx)
+            if token in [10]:
+                localctx = exprsParser.AssignarInfixContext(self, localctx)
                 self.enterOuterAlt(localctx, 1)
                 self.state = 10
-                self.match(exprsParser.NOM_MACRO)
+                self.match(exprsParser.INFIX)
                 self.state = 14
                 self._errHandler.sync(self)
                 token = self._input.LA(1)
@@ -222,11 +222,11 @@ class exprsParser ( Parser ):
                 self.state = 16
                 self.terme(0)
                 pass
-            elif token in [10]:
-                localctx = exprsParser.AssignarInfixContext(self, localctx)
+            elif token in [9]:
+                localctx = exprsParser.AssignarMacroContext(self, localctx)
                 self.enterOuterAlt(localctx, 2)
                 self.state = 17
-                self.match(exprsParser.INFIX)
+                self.match(exprsParser.NOM_MACRO)
                 self.state = 21
                 self._errHandler.sync(self)
                 token = self._input.LA(1)

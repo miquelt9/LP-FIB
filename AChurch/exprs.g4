@@ -4,8 +4,8 @@ root : terme             // l'etiqueta ja és root
      | assignar
      ;
 
-assignar: NOM_MACRO ('≡' || '=') terme     # assignarMacro
-     | INFIX ('≡' || '=') terme     # assignarInfix
+assignar: INFIX ('≡' || '=') terme     # assignarInfix 
+     | NOM_MACRO ('≡' || '=') terme     # assignarMacro
      ;
 
 terme : LLETRA                          # lletra
@@ -18,6 +18,6 @@ terme : LLETRA                          # lletra
 
 LLETRA : [a-z];
 NOM_MACRO: [A-Z][a-zA-Z0-9]*;
-INFIX: [!#$%&*+,-/:;<>?@^|~]; //all non-alphanumeric chars not used to avoid conflicts
+INFIX: [!"·$%&*.,:;<>?¿|@#/~¬€_+\-^]; //had problems using negated version of alphabet so...
 
 WS  : [ \t\n\r]+ -> skip ;

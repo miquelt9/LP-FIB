@@ -14,13 +14,13 @@ class exprsVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by exprsParser#assignarMacro.
-    def visitAssignarMacro(self, ctx:exprsParser.AssignarMacroContext):
+    # Visit a parse tree produced by exprsParser#assignarInfix.
+    def visitAssignarInfix(self, ctx:exprsParser.AssignarInfixContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by exprsParser#assignarInfix.
-    def visitAssignarInfix(self, ctx:exprsParser.AssignarInfixContext):
+    # Visit a parse tree produced by exprsParser#assignarMacro.
+    def visitAssignarMacro(self, ctx:exprsParser.AssignarMacroContext):
         return self.visitChildren(ctx)
 
 
