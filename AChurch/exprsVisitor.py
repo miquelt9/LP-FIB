@@ -14,8 +14,23 @@ class exprsVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by exprsParser#assignarMacro.
+    def visitAssignarMacro(self, ctx:exprsParser.AssignarMacroContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by exprsParser#assignarInfix.
+    def visitAssignarInfix(self, ctx:exprsParser.AssignarInfixContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by exprsParser#parentesis.
     def visitParentesis(self, ctx:exprsParser.ParentesisContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by exprsParser#macro.
+    def visitMacro(self, ctx:exprsParser.MacroContext):
         return self.visitChildren(ctx)
 
 
@@ -26,6 +41,11 @@ class exprsVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by exprsParser#abstraccio.
     def visitAbstraccio(self, ctx:exprsParser.AbstraccioContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by exprsParser#infix.
+    def visitInfix(self, ctx:exprsParser.InfixContext):
         return self.visitChildren(ctx)
 
 

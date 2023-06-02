@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import string
 
 DEBUG = 0
+diccionari_macros = {}
+
 
 @dataclass
 class NodeAp:
@@ -25,11 +27,37 @@ Arbre = NodeAp | NodeAbs | NodeVar
 class EvalVisitor(exprsVisitor):
 
     def visitRoot(self, ctx):
-        if DEBUG: print("HERE")
+        if DEBUG: print("Starting the visit")
         a = self.visitChildren(ctx)
-        if DEBUG: print("HERE2")
+        if DEBUG: print("Tree in Raw Format")
         if DEBUG: print(a)
-        return a
+        
+        # Diferenciarem per casos, doncs si són macros no podem fer el mateix tractament
+        if isinstance(ctx.terme(), exprsParser.TermeContext):
+            print("Matched 'TERME'")
+            
+            print("Arbre:")
+            print(show(a))
+            
+            print("α-conversió:")
+            print(show(a) + " --> ", end="")
+            a = alpha_convert(a)
+            print(show(a))
+            
+            print("β-reducció:")
+            print(show(a) + " --> ", end="")
+            a = beta_reduction(a)
+            if isinstance(a, NodeVar) and a.val == "Nothing": print("...")
+            else: print(show(a))
+
+            print("Resultat:")
+            print(show(a))
+            
+            return a
+            
+        elif isinstance(ctx.assignar(), exprsParser.AssignarContext):
+            print("Matched 'ASSIGNAR'")
+                
 
     def visitParentesis(self, ctx):
         [_,terme,_] = list(ctx.getChildren())
@@ -37,7 +65,7 @@ class EvalVisitor(exprsVisitor):
 
     def visitAbstraccio(self, ctx):
         count = ctx.getChildCount()
-        if DEBUG: print("Visiting childs on abstraction:")
+        if DEBUG: print("--> Visiting childs on abstraction:")
         
         a = NodeAbs(NodeVar(str(ctx.getChild(count-3))), self.visit(ctx.getChild(count-1)))
         if DEBUG: print(str(ctx.getChild(count-3)))
@@ -51,17 +79,42 @@ class EvalVisitor(exprsVisitor):
         return a
 
     def visitAplicacio(self, ctx):
+        if DEBUG: print("--> Visiting aplicacio")
         [terme1,terme2] = list(ctx.getChildren())
         r = NodeAp(self.visit(terme1), self.visit(terme2))
         if DEBUG: print("Current tree apl: " + show(r))
         return r
 
     def visitLletra(self, ctx):
+        if DEBUG: print("-> Visiting lletra")
         [lletra] = list(ctx.getChildren())
-        
         if DEBUG: print("Current tree var: " + show(NodeVar(lletra.getText())))
         return NodeVar(lletra.getText())
     
+    def visitMacro(self, ctx):
+        [macro] = list(ctx.getChildren())
+        return diccionari_macros[str(macro)]
+    
+    def visitAssignarMacro(self, ctx):
+        if DEBUG: print("-> Visiting assignar macro")
+        [nom_macro,_,terme] = list(ctx.getChildren())
+        diccionari_macros[str(nom_macro)] = self.visit(terme)
+        
+        for nom_macro, macro in diccionari_macros.items():
+            print(str(nom_macro) + " ≡ " + show(macro))
+            
+    def visitAssignarInfix(self, ctx:exprsParser.AssignarInfixContext):
+        if DEBUG: print("-> Visiting assignar infix")
+        [nom_infix,_,terme] = list(ctx.getChildren())
+        diccionari_macros[str(nom_infix)] = self.visit(terme)
+        
+        for nom_infix, macro in diccionari_macros.items():
+            print(str(nom_infix) + " ≡ " + show(macro))
+            
+    def visitInfix(self, ctx):
+        if DEBUG: print("-> Visiting infix")
+        [macro1,infix,macro2] = list(ctx.getChildren())
+        return NodeAp(NodeAp(diccionari_macros[str(infix)], diccionari_macros[str(macro1)]), diccionari_macros[str(macro2)])
     
 def show(a: Arbre) -> str:
     match a:
@@ -72,17 +125,31 @@ def show(a: Arbre) -> str:
         case NodeVar(var):
             return str(var)
         
-def beta_reduction(a: Arbre) -> Arbre:
-    if isinstance(a, NodeAp) and isinstance(a.esq, NodeAbs):
-        r = beta_substitution(a.esq.dre, a.esq.esq.val, a.dre)
+def beta_reduction(a: Arbre):
+    while(tree_is_beta_reducible(a)): 
+        t = a; a = beta_reduction_depth(a)
         
-        if (contains_abs(r)): r = beta_reduction(r)
-        return r
+        if a == t:
+            print(show(a))
+            print("⚠  Error during beta reduction, limit reached due to an infinite loop  ⚠")
+            return NodeVar("Nothing")
+    return a
+
+def beta_reduction_depth(a: Arbre) -> Arbre:
+    if isinstance(a, NodeAp) and isinstance(a.esq, NodeAbs):
+        if DEBUG: print("beta-detected")
+        return beta_substitution(a.esq.dre, a.esq.esq.val, a.dre)
     
     elif isinstance(a, NodeAp):
-        return NodeAp(beta_reduction(a.esq), beta_reduction(a.dre))
+        if DEBUG: print("beta-nodeap")
+        return NodeAp(beta_reduction_depth(a.esq), beta_reduction_depth(a.dre))
+    
+    elif isinstance(a, NodeAbs):
+        if DEBUG: print("beta-nodeabs")
+        return NodeAbs(beta_reduction_depth(a.esq), beta_reduction_depth(a.dre))
     
     else:
+        if DEBUG: print("beta-ret-same")
         return a
         
 def beta_substitution(a: Arbre, var: str, subs: Arbre) -> Arbre:
@@ -101,42 +168,42 @@ def beta_substitution(a: Arbre, var: str, subs: Arbre) -> Arbre:
     else:
         return a
     
-def contains_abs(a: Arbre) -> bool:
+def tree_is_beta_reducible(a: Arbre) -> bool:
     if isinstance(a, NodeVar): return False
-    if isinstance(a, NodeAbs): return True
-    return contains_abs(a.esq) or contains_abs(a.dre)
+    if isinstance(a, NodeAp) and isinstance(a.esq, NodeAbs): return True
+    return tree_is_beta_reducible(a.esq) or tree_is_beta_reducible(a.dre)
 
 def alpha_convert(a: Arbre):
     b = alpha(a)
     if DEBUG: print("NEW ALPHA TREE: " + show(b))
     return a
 
-def alpha(a):
+def alpha(a: Arbre, available_vars=list(string.ascii_lowercase)):
     if isinstance(a, NodeAp) and isinstance(a.esq, NodeAbs):
         may_conflict_vars = get_vars_tree(a.dre)
         already_inuse_vars = get_vars_tree(a.esq)
-        available_vars = [x for x in list(string.ascii_lowercase) if x not in already_inuse_vars] # all standard dict available
+        available_vars = [x for x in available_vars if x not in already_inuse_vars] # all standard dict available
         # create dictionary that converts a -> b 
         alpha_dict = build_dictionary(may_conflict_vars, available_vars)
         # substitute a esq amb vars diff de les de la dreta
         t_esq = alpha_substitution(a.esq, alpha_dict)
         # apply alpha for both left and right to get it recursively
-        n_esq = alpha(t_esq)
-        n_dre = alpha(a.dre)
+        n_esq = alpha(t_esq, available_vars)
+        n_dre = alpha(a.dre, available_vars)
         return NodeAp(n_esq, n_dre)
     
     elif isinstance(a, NodeAp):
-        return NodeAp(alpha(a.esq), alpha(a.dre))
+        return NodeAp(alpha(a.esq, available_vars), alpha(a.dre, available_vars))
     
     elif isinstance(a, NodeAbs):
-        return NodeAbs(alpha(a.esq), alpha(a.dre))
+        return NodeAbs(alpha(a.esq, available_vars), alpha(a.dre, available_vars))
     
     elif isinstance(a, NodeVar):
         return a
     
     # No hauria d'arribar 
     print("ERRRROR ON ALPHA!")
-    return alpha(a)
+    return alpha(a, available_vars)
     
 def get_vars_tree(a: Arbre):
     vars = []
@@ -162,26 +229,3 @@ def alpha_substitution(a: Arbre, conversor):
     if a.val in conversor:
         a.val = conversor[a.val]
     return a
-
-# def alpha_convert_depth(a: Arbre, variable: str, new_variable: str):
-#     if isinstance(a, NodeVar):
-#         if a.val == variable: 
-#             return NodeVar(new_variable)
-#         return a
-        
-#     elif isinstance(a, NodeAp):
-#         esq_converted = alpha_convert_depth(a.esq, variable, new_variable)
-#         dre_converted = alpha_convert_depth(a.dre, variable, new_variable)
-#         return NodeAp(esq_converted, dre_converted)
-    
-#     elif isinstance(a, NodeAbs):
-#         if a.esq.val == variable: 
-#             new_var = get_new_variable()
-#             body_converted = alpha_convert_depth(a.dre, a.esq.val, new_var)
-#             return NodeAbs(NodeVar(new_var), body_converted)
-        
-#         else:
-#             body_converted = alpha_convert_depth(a.dre, variable, new_variable)
-#             return NodeAbs(a.esq, body_converted)
-    
-#     return a
