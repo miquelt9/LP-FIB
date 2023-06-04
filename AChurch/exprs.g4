@@ -9,7 +9,7 @@ assignar: INFIX EQUALS terme     # assignarInfix
      ;
 
 terme : LLETRA                          # lletra
-     | NOM_MACRO INFIX NOM_MACRO        # infix
+     | INFIX                            # infix
      | NOM_MACRO                        # macro
      | '(' terme ')'                    # parentesis
      | terme terme                      # aplicacio

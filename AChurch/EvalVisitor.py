@@ -43,11 +43,7 @@ class EvalVisitor(exprsVisitor):
             a = alpha_convert(a)
             print(show(a))
             
-            print("β-reducció:")
-            print(show(a) + " --> ", end="")
             a = beta_reduction(a)
-            if isinstance(a, NodeVar) and a.val == "Nothing": print("...")
-            else: print(show(a))
 
             print("Resultat:")
             print(show(a))
@@ -80,7 +76,10 @@ class EvalVisitor(exprsVisitor):
     def visitAplicacio(self, ctx):
         if DEBUG: print("--> Visiting aplicacio")
         [terme1,terme2] = list(ctx.getChildren())
-        r = NodeAp(self.visit(terme1), self.visit(terme2))
+        p_infix = str(terme2.getChild(0))
+        if (len(p_infix) == 1 and not p_infix.isalpha() and p_infix != '(' and p_infix != "\\" and p_infix != 'λ'):
+            r = NodeAp(self.visit (terme2), self.visit(terme1))
+        else: r = NodeAp(self.visit(terme1), self.visit(terme2))
         if DEBUG: print("Current tree apl: " + show(r))
         return r
 
@@ -115,24 +114,14 @@ class EvalVisitor(exprsVisitor):
             
     def visitInfix(self, ctx):
         if DEBUG: print("-> Visiting infix")
-        [macro1,infix,macro2] = list(ctx.getChildren())
-        
-        if not str(macro1) in diccionari_macros:
-            print("⚠  The macro you used (" + str(macro1) + ") was not declared\nShowing current dictionary:")
-            print_available_macros()     
-            return NodeVar(None)
-
-        if not str(macro2) in diccionari_macros:
-            print("⚠  The macro you used (" + str(macro2) + ") was not declared\nShowing current dictionary:")
-            print_available_macros()     
-            return NodeVar(None)
+        [infix] = list(ctx.getChildren())
         
         if not str(infix) in diccionari_macros:
             print("⚠  The infix you used (" + str(infix) + ") was not declared\nShowing current dictionary:")
             print_available_macros()     
             return NodeVar(None)
         
-        return NodeAp(NodeAp(diccionari_macros[str(infix)], diccionari_macros[str(macro1)]), diccionari_macros[str(macro2)])
+        return diccionari_macros[str(infix)]
    
 def print_available_macros():
     for nom_macro, macro in diccionari_macros.items():
@@ -151,10 +140,16 @@ def beta_reduction(a: Arbre):
     while(tree_is_beta_reducible(a)): 
         t = a; a = beta_reduction_depth(a)
         
+        print("β-reducció:")
+        print(show(t) + " → ", end="")
         if a == t:
-            print(show(a))
+            print(show(a)); print("...")
             print("⚠  Error during beta reduction, limit reached due to an infinite loop  ⚠")
             return NodeVar("Nothing")
+        # if isinstance(t, NodeVar) and a.val == "Nothing": print("...")
+        else: print(show(a))
+        
+
     return a
 
 def beta_reduction_depth(a: Arbre) -> Arbre:
@@ -197,8 +192,9 @@ def tree_is_beta_reducible(a: Arbre) -> bool:
 
 def alpha_convert(a: Arbre):
     b = alpha(a, generate_vars())
+
     if DEBUG: print("NEW ALPHA TREE: " + show(b))
-    return a
+    return b
 
 def alpha(a: Arbre, available_vars):
     if isinstance(a, NodeAp) and isinstance(a.esq, NodeAbs):
