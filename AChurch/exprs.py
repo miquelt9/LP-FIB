@@ -13,6 +13,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 
 TOKEN = open('token.txt').read().strip()
 LOG_ACTIVATED = False
+VERBOSE = True
 
 # Enable logging
 if (LOG_ACTIVATED):
@@ -20,7 +21,7 @@ if (LOG_ACTIVATED):
     logger = logging.getLogger(__name__)
 
 
-commands = "/start -> Inicia el bot\n/macros -> Mostra les macros definides\n/author -> Mostra l'autor\n/help -> Mostra les comandes disponibles"
+commands = "/start -> Inicia el bot\n/macros -> Mostra les macros definides\n/clear -> Neteja les macros\n/author -> Mostra l'autor\n/help -> Mostra les comandes disponibles"
 
 # Define a few command handlers. These usually take the two arguments update and
 
@@ -42,9 +43,21 @@ async def author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
 async def macros(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Mostra els macros."""
-    await update.message.reply_text("Els macros definits són:")
+    t = ""
+    for nom_macro, macro in diccionari_macros.items():
+        t += (str(nom_macro) + " ≡ " + show(macro) + '\n')
+    if t == "":
+        await update.message.reply_text("Els macros definits són:")
+        await update.message.reply_text(t)
+    else:
+        await update.message.reply_text("Actualment no hi ha macros definides")
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Neteja els macros."""
+    diccionari_macros.clear()
+    await update.message.reply_text("El diccionari de macros s'ha netejat.")
+
+async def treat_lambda_tree(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     user_input = update.message.text
     if (user_input != ""):
@@ -56,9 +69,62 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if (parser.getNumberOfSyntaxErrors() == 0):
             visitor = EvalVisitor()
-            visitor.visit(tree)
+            a = visitor.visit(tree)  
+            
+            if isinstance(a, Arbre):
+                
+                if a == NodeVar("Infix"):
+                    await update.message.reply_text("S'ha detectat l'infix '" + error_macro + "' pero no est'a definit")
+                elif a == NodeVar("Macro"):
+                    await update.message.reply_text("S'ha detectat la macro '" + error_macro + "' pero no est'a definit")
+                
+                else:
+                    if (VERBOSE): print("Proceding with tree:"); print(show(a))
+                    await update.message.reply_text(str(show(a)))
+                    
+                    if (VERBOSE): print("α-conversió:")
+                    if (VERBOSE): print(show(a) + " --> ", end="")
+                    a = alpha_convert(a)
+                    # await update.message.reply_text(str(show(a)))
+                    if (VERBOSE): print(show(a))
+                    
+                    trace = [a]
+                    trace.extend(beta_reduction(a))
+
+                    trace_show = []
+                    for x in trace:
+                        trace_show.append(show(x))
+                    
+                    if len(trace) == 0:
+                        # await update.message.reply_text(str(show(a)) + " is not β-reductible")
+                        if (VERBOSE): print("Trying to β-reduce smth which is not β-reducible")
+                        
+                    elif trace[-1] == None:
+                        if (VERBOSE): print(trace_show)
+                        for i in range(len(trace) - 2):
+                            mov = trace_show[i] + " → β → " + trace_show[i+1]
+                            await update.message.reply_text(mov)               
+                        a = trace[-1]
+                        await update.message.reply_text(trace_show[-2] + " → β → " + trace_show[-2])
+                        await update.message.reply_text("Nothing")  
+                        
+                    else:
+                        if (VERBOSE): print(trace_show)
+                        for i in range(len(trace) - 1):
+                            mov = trace_show[i] + " → β → " + trace_show[i+1]
+                            await update.message.reply_text(mov)               
+                        a = trace[-1]
+                        await update.message.reply_text(show(a))  
+                        
+                    if (VERBOSE): print("Resultat:")
+                    if (VERBOSE): print(show(a))
+                
+            else:
+                if (VERBOSE): print("Macro defined!")
+                await update.message.reply_text(a + "≡" + str(show(diccionari_macros[a])) + " s'ha definit amb èxit.")
             
         else:
+            await update.message.reply_text("Comprova el teu arbre i torna'l a enviar")
             print("")
             print(parser.getNumberOfSyntaxErrors(), 'errors de sintaxi.')
             print(tree.toStringTree(recog=parser))
@@ -77,9 +143,10 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("author", author))
     application.add_handler(CommandHandler("macros", macros))
+    application.add_handler(CommandHandler("clear", clear))
 
     # on non command i.e message - echo the message on Telegram
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, treat_lambda_tree))
 
 
     # Run the bot until the user presses Ctrl-C
@@ -91,6 +158,7 @@ def main() -> None:
 
 DEBUG = 0
 diccionari_macros = {}
+error_macro = ""
 
 @dataclass
 class NodeAp:
@@ -119,24 +187,12 @@ class EvalVisitor(exprsVisitor):
         # Diferenciarem per casos, doncs si són macros no podem fer el mateix tractament
         if ctx.terme() and a != NodeVar(None):
             if DEBUG: print("Matched 'TERME'")
-            
-            print("Arbre:")
-            print(show(a))
-            
-            print("α-conversió:")
-            print(show(a) + " --> ", end="")
-            a = alpha_convert(a)
-            print(show(a))
-            
-            a = beta_reduction(a)
-
-            print("Resultat:")
-            print(show(a))
-            
+            ## We return the tree so the bot does the handling
             return a
             
         elif ctx.assignar():
             if DEBUG: print("Matched 'ASSIGNAR'")
+            return a
                 
 
     def visitParentesis(self, ctx):
@@ -181,7 +237,9 @@ class EvalVisitor(exprsVisitor):
         
         print("⚠  The macro you used (" + str(macro) + ") was not declared\nShowing current dictionary:")
         print_available_macros()
-        return NodeVar(None)
+        global error_macro 
+        error_macro= str(macro)
+        return NodeVar("Macro")
     
     def visitAssignarMacro(self, ctx):
         if DEBUG: print("-> Visiting assignar macro")
@@ -189,6 +247,7 @@ class EvalVisitor(exprsVisitor):
         diccionari_macros[str(nom_macro)] = self.visit(terme)
         
         print_available_macros()
+        return str(nom_macro)
             
     def visitAssignarInfix(self, ctx:exprsParser.AssignarInfixContext):
         if DEBUG: print("-> Visiting assignar infix")
@@ -196,6 +255,7 @@ class EvalVisitor(exprsVisitor):
         diccionari_macros[str(nom_infix)] = self.visit(terme)
         
         print_available_macros()
+        return str(nom_infix)
             
     def visitInfix(self, ctx):
         if DEBUG: print("-> Visiting infix")
@@ -204,7 +264,9 @@ class EvalVisitor(exprsVisitor):
         if not str(infix) in diccionari_macros:
             print("⚠  The infix you used (" + str(infix) + ") was not declared\nShowing current dictionary:")
             print_available_macros()     
-            return NodeVar(None)
+            global error_macro 
+            error_macro = str(infix)
+            return NodeVar("Infix")
         
         return diccionari_macros[str(infix)]
    
@@ -222,20 +284,24 @@ def show(a: Arbre) -> str:
             return str(var)
         
 def beta_reduction(a: Arbre):
+    traceback = []
     while(tree_is_beta_reducible(a)): 
-        t = a; a = beta_reduction_depth(a)
+        a = beta_reduction_depth(a)
         
-        print("β-reducció:")
-        print(show(t) + " → ", end="")
-        if a == t:
-            print(show(a)); print("...")
-            print("⚠  Error during beta reduction, limit reached due to an infinite loop  ⚠")
-            return NodeVar("Nothing")
+        if (VERBOSE): print("β-reducció:")
+        if (len(traceback) > 0 and VERBOSE): print(show(traceback[-1]) + " → ", end="")
+        if a in traceback:
+            if (VERBOSE): print(show(a)); print("...")
+            if (VERBOSE): print("⚠  Error during beta reduction, limit reached  ⚠")
+            # return NodeVar("Nothing")
+            traceback.append(None)
+            return traceback
         # if isinstance(t, NodeVar) and a.val == "Nothing": print("...")
-        else: print(show(a))
-        
-
-    return a
+        else: 
+            if (VERBOSE): print(show(a))
+            traceback.append(a)
+            
+    return traceback
 
 def beta_reduction_depth(a: Arbre) -> Arbre:
     if isinstance(a, NodeAp) and isinstance(a.esq, NodeAbs):
@@ -340,9 +406,6 @@ def alpha_substitution(a: Arbre, conversor):
     if a.val in conversor:
         a.val = conversor[a.val]
     return a
-
-
-
 
 
 
