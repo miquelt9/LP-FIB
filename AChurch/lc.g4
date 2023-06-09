@@ -1,5 +1,5 @@
 // Gramàtica per expressions senzilles
-grammar exprs;
+grammar lc;
 root : terme             // l'etiqueta ja és root
      | assignar
      ;
