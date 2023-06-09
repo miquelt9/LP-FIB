@@ -1,5 +1,4 @@
 python-telegram-bot
-antlr4
+antlr4-tools
 pydot
-graphviz
 antlr4-python3-runtime
