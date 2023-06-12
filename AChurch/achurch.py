@@ -292,11 +292,15 @@ def initialize_globals(u, force=False):
     if force:
         show_all_pictures[uid] = False
         lang[uid] = u.language_code
+        if (lang[uid] != 'ca' and lang[uid] != 'es' and lang[uid] != 'en'):
+            lang[uid] = 'en'
         diccionari_macros[uid] = {}
     else:
         if not (uid in lang):
             show_all_pictures[uid] = False
             lang[uid] = u.language_code
+            if (lang[uid] != 'ca' and lang[uid] != 'es' and lang[uid] != 'en'):
+                lang[uid] = 'en'
             diccionari_macros[uid] = {}
 
 
